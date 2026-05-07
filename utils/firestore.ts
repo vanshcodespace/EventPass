@@ -1,23 +1,23 @@
 import { auth, db } from "@/config/firebase";
 import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-} from "firebase/auth";
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  writeBatch,
+  Timestamp,
+  onSnapshot,
+  orderBy,
+  addDoc,
+} from 'firebase/firestore';
 import {
-    Timestamp,
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    onSnapshot,
-    orderBy,
-    query,
-    setDoc,
-    where,
-    writeBatch,
-} from "firebase/firestore";
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 
 // Custom random token generator for Expo compatibility (avoids crypto error)
 const generateToken = () => {
@@ -858,6 +858,7 @@ export async function getCheckedInCandidateIds(
 
 /**
  * Add guest to guest list (Enhanced with duplicate checking)
+ * Add guest to guest list (Enhanced with duplicate checking)
  */
 export async function addGuest(
   name: string,
@@ -866,34 +867,34 @@ export async function addGuest(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const lowerEmail = email.toLowerCase().trim();
-
+    
     // Check if guest already exists
     const guestQuery = query(
-      collection(db, "guestList"),
-      where("email", "==", lowerEmail),
+      collection(db, 'guestList'),
+      where('email', '==', lowerEmail)
     );
     const existingGuest = await getDocs(guestQuery);
-
+    
     if (!existingGuest.empty) {
-      return {
-        success: false,
-        message: `Guest with email ${lowerEmail} already exists`,
+      return { 
+        success: false, 
+        message: `Guest with email ${lowerEmail} already exists` 
       };
     }
-
+    
     // Add new guest
-    const docRef = doc(collection(db, "guestList"));
+    const docRef = doc(collection(db, 'guestList'));
     await setDoc(docRef, {
       name: name.trim(),
       nameLower: name.trim().toLowerCase(),
       email: lowerEmail,
       enrollmentType, // Already in lowercase
-      status: "pending",
+      status: 'pending',
       registeredAt: null,
       qrToken: null,
     });
-
-    return { success: true, message: "Guest added successfully" };
+    
+    return { success: true, message: 'Guest added successfully' };
   } catch (error) {
     console.error("Error adding guest:", error);
     return { success: false, message: "Failed to add guest" };
@@ -902,67 +903,59 @@ export async function addGuest(
 
 /**
  * Batch add guests from CSV (Enhanced with validation and duplicate checking)
+ * Batch add guests from CSV (Enhanced with validation and duplicate checking)
  */
 export async function addGuestsFromCSV(
-  guests: {
-    name: string;
-    email: string;
-    enrollmentType: "masterclass" | "event";
-  }[],
-): Promise<{
-  success: boolean;
-  added: number;
-  failed: number;
-  message: string;
-  failures?: { name: string; email: string; error: string }[];
-}> {
+  guests: Array<{ name: string; email: string; enrollmentType: 'masterclass' | 'event' }>
+): Promise<{ success: boolean; added: number; failed: number; message: string; failures?: Array<{ name: string; email: string; error: string }> }> {
   try {
     const batch = writeBatch(db);
     let added = 0;
     let failed = 0;
-    const failures: { name: string; email: string; error: string }[] = [];
+    const failures: Array<{ name: string; email: string; error: string }> = [];
 
+    // First, check for duplicates in the database
     // First, check for duplicates in the database
     for (const guest of guests) {
       try {
         const lowerEmail = guest.email.toLowerCase().trim();
-
+        
         // Check if guest already exists in database
         const guestQuery = query(
-          collection(db, "guestList"),
-          where("email", "==", lowerEmail),
+          collection(db, 'guestList'),
+          where('email', '==', lowerEmail)
         );
         const existingGuest = await getDocs(guestQuery);
-
+        
         if (!existingGuest.empty) {
           failed++;
           failures.push({
             name: guest.name,
             email: lowerEmail,
-            error: "Email already exists in database",
+            error: 'Email already exists in database',
           });
           continue;
         }
-
+        
         // Add to batch
-        const docRef = doc(collection(db, "guestList"));
+        const docRef = doc(collection(db, 'guestList'));
         batch.set(docRef, {
           name: guest.name.trim(),
           nameLower: guest.name.trim().toLowerCase(),
           email: lowerEmail,
           enrollmentType: guest.enrollmentType, // Already in lowercase
-          status: "pending",
+          status: 'pending',
           registeredAt: null,
           qrToken: null,
         });
         added++;
       } catch (error) {
-        console.error("Error processing guest:", guest, error);
+        console.error('Error processing guest:', guest, error);
         failed++;
         failures.push({
           name: guest.name,
           email: guest.email,
-          error: "Failed to process guest",
+          error: 'Failed to process guest',
         });
       }
     }
@@ -971,13 +964,14 @@ export async function addGuestsFromCSV(
     if (added > 0) {
       await batch.commit();
     }
-
-    const failureMessage = failed > 0 ? `, ${failed} failed` : "";
+    
+    const failureMessage = failed > 0 ? `, ${failed} failed` : '';
     return {
       success: failed === 0,
       added,
       failed,
       message: `Added ${added} guests${failureMessage}`,
+      failures: failures.length > 0 ? failures : undefined,
       failures: failures.length > 0 ? failures : undefined,
     };
   } catch (error) {
@@ -986,14 +980,8 @@ export async function addGuestsFromCSV(
       success: false,
       added: 0,
       failed: guests.length,
-      message: "Batch upload failed",
-      failures: [
-        {
-          name: "Batch Error",
-          email: "",
-          error: "Batch upload failed due to database error",
-        },
-      ],
+      message: 'Batch upload failed',
+      failures: [{ name: 'Batch Error', email: '', error: 'Batch upload failed due to database error' }],
     };
   }
 }
@@ -1027,15 +1015,13 @@ export async function checkIfEmailInGuestList(
 /**
  * Delete a guest from guest list (for admin management)
  */
-export async function deleteGuest(
-  guestId: string,
-): Promise<{ success: boolean; message: string }> {
+export async function deleteGuest(guestId: string): Promise<{ success: boolean; message: string }> {
   try {
-    await deleteDoc(doc(db, "guestList", guestId));
-    return { success: true, message: "Guest deleted successfully" };
+    await deleteDoc(doc(db, 'guestList', guestId));
+    return { success: true, message: 'Guest deleted successfully' };
   } catch (error) {
-    console.error("Error deleting guest:", error);
-    return { success: false, message: "Failed to delete guest" };
+    console.error('Error deleting guest:', error);
+    return { success: false, message: 'Failed to delete guest' };
   }
 }
 
@@ -1044,16 +1030,12 @@ export async function deleteGuest(
  */
 export async function updateGuest(
   guestId: string,
-  updates: Partial<{
-    name: string;
-    email: string;
-    enrollmentType: "masterclass" | "event";
-  }>,
+  updates: Partial<{ name: string; email: string; enrollmentType: 'masterclass' | 'event' }>
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const guestRef = doc(db, "guestList", guestId);
+    const guestRef = doc(db, 'guestList', guestId);
     const updateData: any = {};
-
+    
     if (updates.name) {
       updateData.name = updates.name.trim();
       updateData.nameLower = updates.name.trim().toLowerCase();
@@ -1064,12 +1046,12 @@ export async function updateGuest(
     if (updates.enrollmentType) {
       updateData.enrollmentType = updates.enrollmentType;
     }
-
+    
     await setDoc(guestRef, updateData, { merge: true });
-    return { success: true, message: "Guest updated successfully" };
+    return { success: true, message: 'Guest updated successfully' };
   } catch (error) {
-    console.error("Error updating guest:", error);
-    return { success: false, message: "Failed to update guest" };
+    console.error('Error updating guest:', error);
+    return { success: false, message: 'Failed to update guest' };
   }
 }
 
@@ -1084,19 +1066,18 @@ export async function getGuestStatistics(): Promise<{
   pending: number;
 }> {
   try {
-    const snapshot = await getDocs(collection(db, "guestList"));
-    const guests = snapshot.docs.map((doc) => doc.data() as GuestListItem);
-
+    const snapshot = await getDocs(collection(db, 'guestList'));
+    const guests = snapshot.docs.map(doc => doc.data() as GuestListItem);
+    
     return {
       total: guests.length,
-      masterclass: guests.filter((g) => g.enrollmentType === "masterclass")
-        .length,
-      event: guests.filter((g) => g.enrollmentType === "event").length,
-      registered: guests.filter((g) => g.status === "registered").length,
-      pending: guests.filter((g) => g.status === "pending").length,
+      masterclass: guests.filter(g => g.enrollmentType === 'masterclass').length,
+      event: guests.filter(g => g.enrollmentType === 'event').length,
+      registered: guests.filter(g => g.status === 'registered').length,
+      pending: guests.filter(g => g.status === 'pending').length,
     };
   } catch (error) {
-    console.error("Error getting guest statistics:", error);
+    console.error('Error getting guest statistics:', error);
     return {
       total: 0,
       masterclass: 0,

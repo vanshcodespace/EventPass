@@ -1,52 +1,46 @@
 import { useAuth } from "@/context/AuthContext";
 import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  getGuestList,
   addGuest,
   deleteGuest,
   getCheckedInCandidateIds,
   getGuestList,
   GuestListItem,
-  updateGuest,
-} from "@/utils/firestore";
-import { Ionicons } from "@expo/vector-icons";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import Papa from "papaparse";
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from '@/utils/firestore';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import Papa from 'papaparse';
+import { Ionicons } from '@expo/vector-icons';
 
 type WebAlertButton = {
   text: string;
   onPress?: () => void;
-  style?: "cancel" | "default" | "destructive";
+  style?: 'cancel' | 'default' | 'destructive';
 };
 
-const showAlert = (
-  title: string,
-  message: string,
-  buttons?: WebAlertButton[],
-) => {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
+const showAlert = (title: string, message: string, buttons?: WebAlertButton[]) => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
     if (!buttons || buttons.length <= 1) {
       window.alert(`${title}\n\n${message}`);
       if (buttons?.[0]?.onPress) buttons[0].onPress();
       return;
     }
 
-    const cancelButton = buttons.find((button) => button.style === "cancel");
-    const primaryButton =
-      buttons.find((button) => button.style !== "cancel") ?? buttons[0];
+    const cancelButton = buttons.find((button) => button.style === 'cancel');
+    const primaryButton = buttons.find((button) => button.style !== 'cancel') ?? buttons[0];
     const confirmed = window.confirm(`${title}\n\n${message}`);
     if (confirmed) primaryButton?.onPress?.();
     else cancelButton?.onPress?.();
@@ -119,23 +113,13 @@ export default function GuestListScreen() {
 
   const handleAddGuest = async () => {
     if (!name.trim() || !email.trim()) {
-      showAlert("Error", "Please fill in all fields");
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
     setSubmitting(true);
+    const result = await addGuest(name, email, enrollmentType);
+    showAlert('Result', result.message);
 
-    let result;
-    if (editingId) {
-      result = await updateGuest(editingId, {
-        name,
-        email,
-        enrollmentType,
-      });
-    } else {
-      result = await addGuest(name, email, enrollmentType);
-    }
-
-    showAlert("Result", result.message);
     if (result.success) {
       resetForm();
       loadGuests();
@@ -143,63 +127,16 @@ export default function GuestListScreen() {
     setSubmitting(false);
   };
 
-  const resetForm = () => {
-    setName("");
-    setEmail("");
-    setEnrollmentType("event");
-    setShowForm(false);
-    setShowEditModal(false);
-    setEditingId(null);
-  };
-
-  const handleEditGuest = (guest: GuestListItem) => {
-    setName(guest.name);
-    setEmail(guest.email);
-    setEnrollmentType(guest.enrollmentType);
-    setEditingId(guest.id);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteGuest = (id: string) => {
-    showAlert("Delete Guest", "Are you sure you want to delete this guest?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setLoading(true);
-          const result = await deleteGuest(id);
-          if (result.success) {
-            loadGuests();
-          } else {
-            setLoading(false);
-            showAlert("Error", result.message);
-          }
-        },
-      },
-    ]);
-  };
-
-  const uploadValidGuests = async (
-    guestsToUpload: {
-      name: string;
-      email: string;
-      enrollmentType: "masterclass" | "event";
-    }[],
-  ) => {
+  const uploadValidGuests = async (guestsToUpload: Array<{ name: string; email: string; enrollmentType: 'masterclass' | 'event' }>) => {
     setLoading(true);
     let successCount = 0;
     let failureCount = 0;
-    const failures: { name: string; email: string; error: string }[] = [];
+    const failures: Array<{ name: string; email: string; error: string }> = [];
 
     for (let i = 0; i < guestsToUpload.length; i++) {
       const guest = guestsToUpload[i];
       try {
-        const result = await addGuest(
-          guest.name,
-          guest.email,
-          guest.enrollmentType,
-        );
+        const result = await addGuest(guest.name, guest.email, guest.enrollmentType);
         if (result.success) {
           successCount++;
         } else {
@@ -210,97 +147,83 @@ export default function GuestListScreen() {
             error: result.message,
           });
         }
-
+        
         // Add a small delay to avoid overwhelming the API
         if (i < guestsToUpload.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       } catch (error: any) {
         failureCount++;
         failures.push({
           name: guest.name,
           email: guest.email,
-          error: error.message || "Unknown error",
+          error: error.message || 'Unknown error',
         });
       }
     }
 
     setLoading(false);
-
+    
     // Show upload summary
     let summaryMessage = `Upload Complete!\n\n✅ Successfully added: ${successCount}\n❌ Failed: ${failureCount}`;
-
+    
     if (failures.length > 0) {
       summaryMessage += `\n\nFailed Guests:\n`;
-      summaryMessage += failures
-        .slice(0, 5)
-        .map((f) => `• ${f.name} (${f.email})\n  Error: ${f.error}`)
-        .join("\n\n");
-
+      summaryMessage += failures.slice(0, 5).map(f => 
+        `• ${f.name} (${f.email})\n  Error: ${f.error}`
+      ).join('\n\n');
+      
       if (failures.length > 5) {
         summaryMessage += `\n\n... and ${failures.length - 5} more failures`;
       }
     }
-
+    
     showAlert(
-      successCount > 0 && failureCount === 0 ? "Success" : "Upload Summary",
+      successCount > 0 && failureCount === 0 ? 'Success' : 'Upload Summary',
       summaryMessage,
-      [{ text: "OK", onPress: () => loadGuests() }],
+      [{ text: 'OK', onPress: () => loadGuests() }]
     );
   };
 
   const handleUploadCSV = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "text/csv",
-          "application/vnd.ms-excel",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ],
+        type: ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         copyToCacheDirectory: true,
       });
 
       if (result.canceled) {
-        showAlert("Upload canceled", "No file was selected.");
+        showAlert('Upload canceled', 'No file was selected.');
         return;
       }
 
       if (!result.assets || result.assets.length === 0) {
-        showAlert(
-          "Upload Error",
-          "No file data returned by the picker. Please try again.",
-        );
+        showAlert('Upload Error', 'No file data returned by the picker. Please try again.');
         return;
       }
 
       const asset = result.assets[0];
       const fileUri = asset.uri;
       const fileName = asset.name;
-      const fileExtension = fileName.split(".").pop()?.toLowerCase();
+      const fileExtension = fileName.split('.').pop()?.toLowerCase();
 
       // Check if file is CSV or Excel
-      if (!["csv", "xls", "xlsx"].includes(fileExtension || "")) {
-        showAlert(
-          "Error",
-          "Please upload a CSV or Excel file (.csv, .xls, .xlsx)",
-        );
+      if (!['csv', 'xls', 'xlsx'].includes(fileExtension || '')) {
+        showAlert('Error', 'Please upload a CSV or Excel file (.csv, .xls, .xlsx)');
         return;
       }
 
-      let fileContent = "";
-
+      let fileContent = '';
+      
       // Handle CSV files
-      if (fileExtension === "csv") {
-        const webFile = "file" in asset ? (asset.file as File | null) : null;
-        const looksLikeWebUri =
-          fileUri.startsWith("blob:") ||
-          fileUri.startsWith("data:") ||
-          fileUri.startsWith("http");
+      if (fileExtension === 'csv') {
+        const webFile = 'file' in asset ? (asset.file as File | null) : null;
+        const looksLikeWebUri = fileUri.startsWith('blob:') || fileUri.startsWith('data:') || fileUri.startsWith('http');
 
         try {
           if (webFile) {
             fileContent = await webFile.text();
-          } else if (Platform.OS === "web" || looksLikeWebUri) {
+          } else if (Platform.OS === 'web' || looksLikeWebUri) {
             const response = await fetch(fileUri);
             fileContent = await response.text();
           } else {
@@ -308,18 +231,12 @@ export default function GuestListScreen() {
           }
         } catch (readError: any) {
           const readMessage = readError?.message || String(readError);
-          showAlert(
-            "File Read Error",
-            `Could not read the CSV file.\n\n${readMessage}`,
-          );
+          showAlert('File Read Error', `Could not read the CSV file.\n\n${readMessage}`);
           return;
         }
       } else {
         // For Excel files, we need to handle them differently
-        showAlert(
-          "Info",
-          "Excel files need to be converted to CSV format. Please upload a CSV file for now.",
-        );
+        showAlert('Info', 'Excel files need to be converted to CSV format. Please upload a CSV file for now.');
         return;
       }
 
@@ -331,29 +248,17 @@ export default function GuestListScreen() {
       });
 
       if (parseResult.errors.length > 0) {
-        showAlert(
-          "CSV Parse Error",
-          "Invalid CSV format. Please check the file structure.",
-        );
+        showAlert('CSV Parse Error', 'Invalid CSV format. Please check the file structure.');
         return;
       }
 
       // Validate and process each row
-      const validGuests: {
-        name: string;
-        email: string;
-        enrollmentType: "masterclass" | "event";
-      }[] = [];
-      const errors: {
-        row: number;
-        name: string;
-        email: string;
-        error: string;
-      }[] = [];
+      const validGuests: Array<{ name: string; email: string; enrollmentType: 'masterclass' | 'event' }> = [];
+      const errors: Array<{ row: number; name: string; email: string; error: string }> = [];
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       const dataRows = parseResult.data as any[];
-
+      
       dataRows.forEach((row, index) => {
         const rowNumber = index + 2; // +2 because of header row and 0-index
         const name = row.name?.trim();
@@ -362,83 +267,62 @@ export default function GuestListScreen() {
 
         // Validate required fields
         if (!name) {
-          errors.push({
-            row: rowNumber,
-            name: "Missing",
-            email: email || "Missing",
-            error: "Name is required",
-          });
+          errors.push({ row: rowNumber, name: 'Missing', email: email || 'Missing', error: 'Name is required' });
           return;
         }
 
         if (!email) {
-          errors.push({
-            row: rowNumber,
-            name,
-            email: "Missing",
-            error: "Email is required",
-          });
+          errors.push({ row: rowNumber, name, email: 'Missing', error: 'Email is required' });
           return;
         }
 
         if (!emailRegex.test(email)) {
-          errors.push({
-            row: rowNumber,
-            name,
-            email,
-            error: "Invalid email format",
-          });
+          errors.push({ row: rowNumber, name, email, error: 'Invalid email format' });
           return;
         }
 
         if (!enrollmentType) {
-          errors.push({
-            row: rowNumber,
-            name,
-            email,
-            error: "Enrollment type is required",
-          });
+          errors.push({ row: rowNumber, name, email, error: 'Enrollment type is required' });
           return;
         }
 
         // Validate enrollment type (case-insensitive)
-        if (enrollmentType !== "masterclass" && enrollmentType !== "event") {
-          errors.push({
-            row: rowNumber,
-            name,
-            email,
-            error:
-              'Enrollment type must be "masterclass" or "event" (case-insensitive)',
+        if (enrollmentType !== 'masterclass' && enrollmentType !== 'event') {
+          errors.push({ 
+            row: rowNumber, 
+            name, 
+            email, 
+            error: 'Enrollment type must be "masterclass" or "event" (case-insensitive)' 
           });
           return;
         }
 
         // Check for duplicate emails in the same upload
         const isDuplicateInUpload = validGuests.some(
-          (guest) => guest.email.toLowerCase() === email.toLowerCase(),
+          guest => guest.email.toLowerCase() === email.toLowerCase()
         );
-
+        
         if (isDuplicateInUpload) {
-          errors.push({
-            row: rowNumber,
-            name,
-            email,
-            error: "Duplicate email in the same file",
+          errors.push({ 
+            row: rowNumber, 
+            name, 
+            email, 
+            error: 'Duplicate email in the same file' 
           });
           return;
         }
 
         // Check if email already exists in the existing guest list
         const existingGuest = guests.find(
-          (guest) => guest.email.toLowerCase() === email.toLowerCase(),
+          guest => guest.email.toLowerCase() === email.toLowerCase()
         );
-
+        
         if (existingGuest) {
-          errors.push({
-            row: rowNumber,
-            name,
-            email,
-            error: `Email already exists (${existingGuest.name})`,
+          errors.push({ 
+            row: rowNumber, 
+            name, 
+            email, 
+            error: `Email already exists (${existingGuest.name})` 
           });
           return;
         }
@@ -447,65 +331,61 @@ export default function GuestListScreen() {
         validGuests.push({
           name,
           email: email.toLowerCase(),
-          enrollmentType: enrollmentType as "masterclass" | "event",
+          enrollmentType: enrollmentType as 'masterclass' | 'event',
         });
       });
 
       // Show validation summary
       if (errors.length > 0) {
         let errorMessage = `Found ${errors.length} error(s) in the file:\n\n`;
-        errorMessage += errors
-          .slice(0, 5)
-          .map(
-            (err) =>
-              `Row ${err.row}: ${err.error}\n   Name: ${err.name}\n   Email: ${err.email}`,
-          )
-          .join("\n\n");
-
+        errorMessage += errors.slice(0, 5).map(err => 
+          `Row ${err.row}: ${err.error}\n   Name: ${err.name}\n   Email: ${err.email}`
+        ).join('\n\n');
+        
         if (errors.length > 5) {
           errorMessage += `\n\n... and ${errors.length - 5} more errors`;
         }
-
+        
         if (validGuests.length === 0) {
-          showAlert("Validation Failed", errorMessage);
+          showAlert('Validation Failed', errorMessage);
           return;
         }
-
+        
         showAlert(
-          "Partial Validation",
+          'Partial Validation', 
           `${validGuests.length} valid guest(s) found.\n${errors.length} error(s) found.\n\n${errorMessage}`,
           [
-            { text: "Cancel", style: "cancel" },
+            { text: 'Cancel', style: 'cancel' },
             {
               text: `Upload ${validGuests.length} Valid Guest(s)`,
               onPress: async () => {
                 await uploadValidGuests(validGuests);
               },
             },
-          ],
+          ]
         );
       } else if (validGuests.length > 0) {
         // All guests are valid
         showAlert(
-          "Confirm Upload",
+          'Confirm Upload', 
           `Upload ${validGuests.length} valid guest(s) from CSV/Excel?\n\nAll enrollment types will be stored in lowercase.`,
           [
-            { text: "Cancel", style: "cancel" },
+            { text: 'Cancel', style: 'cancel' },
             {
-              text: "Upload",
+              text: 'Upload',
               onPress: async () => {
                 await uploadValidGuests(validGuests);
               },
             },
-          ],
+          ]
         );
       } else {
-        showAlert("Error", "No valid guest entries found in the file");
+        showAlert('Error', 'No valid guest entries found in the file');
       }
     } catch (error: any) {
-      console.error("File upload error:", error);
+      console.error('File upload error:', error);
       const errorMessage = error?.message || String(error);
-      showAlert("Upload Error", `Upload failed.\n\n${errorMessage}`);
+      showAlert('Upload Error', `Upload failed.\n\n${errorMessage}`);
     }
   };
 
