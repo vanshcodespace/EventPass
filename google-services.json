@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "461367194562",
-    "project_id": "eventpass-833eb",
-    "storage_bucket": "eventpass-833eb.firebasestorage.app"
+    "project_number": "684334175892",
+    "project_id": "event-mobile-app-fdaaf",
+    "storage_bucket": "event-mobile-app-fdaaf.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:461367194562:android:30f0bbb28db5e49a11dc5b",
+        "mobilesdk_app_id": "1:684334175892:android:aca849632562d6f32e8681",
         "android_client_info": {
           "package_name": "Event.Pass"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBQ-KgH3nVROWtiJkIvseiDQv5YWWRV6PU"
+          "current_key": "AIzaSyDEeIE97AthBdTXiuI6qGLp-12L6xmLdeg"
         }
       ],
       "services": {
