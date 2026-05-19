@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "684334175892",
+    "firebase_url": "https://event-mobile-app-fdaaf-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "event-mobile-app-fdaaf",
     "storage_bucket": "event-mobile-app-fdaaf.firebasestorage.app"
   },
@@ -10,6 +11,25 @@
         "mobilesdk_app_id": "1:684334175892:android:aca849632562d6f32e8681",
         "android_client_info": {
           "package_name": "Event.Pass"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEeIE97AthBdTXiuI6qGLp-12L6xmLdeg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684334175892:android:dd258af24e8850242e8681",
+        "android_client_info": {
+          "package_name": "com.connecthq.app"
         }
       },
       "oauth_client": [],
